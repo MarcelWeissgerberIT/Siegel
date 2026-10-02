@@ -72,16 +72,11 @@ export function RevealVideo({ name, className }: { name: string; className?: str
     return () => io.disconnect();
   }, []);
   return (
-    <video
-      ref={ref}
-      className={cn("object-cover", className)}
-      src={asset(`/media/${name}.mp4`)}
-      poster={asset(`/media/${name}-poster.jpg`)}
-      muted
-      playsInline
-      preload="auto"
-      aria-hidden
-    />
+    <video ref={ref} className={cn("object-cover", className)} poster={asset(`/media/${name}-poster.jpg`)} muted playsInline preload="auto" aria-hidden>
+      <source src={asset(`/media/${name}.mp4`)} type="video/mp4" />
+      {/* For browsers without H.264, e.g. Chromium on Linux. */}
+      <source src={asset(`/media/${name}.webm`)} type="video/webm" />
+    </video>
   );
 }
 
