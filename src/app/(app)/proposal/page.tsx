@@ -335,6 +335,7 @@ function ProposalPageInner() {
             readOnly={sealed}
             blocks={blocks}
             brandName={settings.brand.companyName}
+            stripeCheckout={settings.stripe.connected}
             onSaveBlock={(t: Tier) =>
               action("block", async () => {
                 const { id: _drop, ...tier } = t;
@@ -396,17 +397,34 @@ function ProposalPageInner() {
             </Card>
             <Card className="p-4">
               <h3 className="text-[13px] font-semibold">Payment</h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted">
-                After signing, the client is redirected to the tier&apos;s Stripe Payment Link with <code className="font-mono">client_reference_id</code> set, so the Stripe webhook marks it paid automatically.
-              </p>
-              <ul className="mt-3 space-y-1.5 text-xs">
-                {p.tiers.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-2">
-                    <span className="truncate">{t.name}</span>
-                    {t.paymentLink ? <Badge tone="ok">Stripe link</Badge> : <Badge tone={MODE === "local" ? "info" : "warn"}>{MODE === "local" ? "simulated" : "no link"}</Badge>}
-                  </li>
-                ))}
-              </ul>
+              {settings.stripe.connected ? (
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  After signing, the client lands on a Stripe Checkout for exactly the deposit of the package they chose. Siegel marks it paid as soon as Stripe confirms.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">
+                    After signing, the client is redirected to the tier&apos;s Stripe Payment Link with <code className="font-mono">client_reference_id</code> set, so the Stripe webhook marks it paid automatically.
+                    {MODE === "server" && (
+                      <>
+                        {" "}
+                        <Link href="/settings/?tab=payments" className="text-accent hover:underline">
+                          Connect Stripe
+                        </Link>{" "}
+                        to skip the links.
+                      </>
+                    )}
+                  </p>
+                  <ul className="mt-3 space-y-1.5 text-xs">
+                    {p.tiers.map((t) => (
+                      <li key={t.id} className="flex items-center justify-between gap-2">
+                        <span className="truncate">{t.name}</span>
+                        {t.paymentLink ? <Badge tone="ok">Stripe link</Badge> : <Badge tone={MODE === "local" ? "info" : "warn"}>{MODE === "local" ? "simulated" : "no link"}</Badge>}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
               {p.depositPercent > 0 && p.tiers[0] && (
                 <p className="mt-3 text-xs text-subtle">
                   Deposit on {p.tiers.find((t) => t.recommended)?.name ?? p.tiers[0].name}: {money(((p.tiers.find((t) => t.recommended) ?? p.tiers[0]).price * p.depositPercent) / 100, p.currency, { cents: true })}

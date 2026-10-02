@@ -48,6 +48,7 @@ export function ProposalEditor({
   blocks,
   onSaveBlock,
   brandName,
+  stripeCheckout = false,
 }: {
   p: Proposal;
   onChange: (patch: Patch) => void;
@@ -55,6 +56,8 @@ export function ProposalEditor({
   blocks: PricingBlock[];
   onSaveBlock: (t: Tier) => void;
   brandName: string;
+  /** Stripe is connected with a key: checkout is created per signature, no link needed. */
+  stripeCheckout?: boolean;
 }) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const cover = p.cover !== "none" ? COVERS[p.cover] : null;
@@ -275,16 +278,24 @@ export function ProposalEditor({
                     />
                   </div>
                   <div className="mt-auto pt-3">
-                    <label className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-subtle">
-                      <CreditCard className="h-3 w-3" /> Stripe Payment Link
-                      {t.paymentLink ? <Check className="h-3 w-3 text-ok" /> : null}
-                    </label>
-                    <Input
-                      value={t.paymentLink}
-                      onChange={(e) => setTier(i, { paymentLink: e.target.value.trim() })}
-                      placeholder="https://buy.stripe.com/…"
-                      className="mt-1 h-8 font-mono text-xs"
-                    />
+                    {stripeCheckout ? (
+                      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-subtle">
+                        <CreditCard className="h-3 w-3" /> Stripe Checkout <Check className="h-3 w-3 text-ok" />
+                      </p>
+                    ) : (
+                      <>
+                        <label className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-subtle">
+                          <CreditCard className="h-3 w-3" /> Stripe Payment Link
+                          {t.paymentLink ? <Check className="h-3 w-3 text-ok" /> : null}
+                        </label>
+                        <Input
+                          value={t.paymentLink}
+                          onChange={(e) => setTier(i, { paymentLink: e.target.value.trim() })}
+                          placeholder="https://buy.stripe.com/…"
+                          className="mt-1 h-8 font-mono text-xs"
+                        />
+                      </>
+                    )}
                     {!readOnly && (
                       <button type="button" onClick={() => onSaveBlock(t)} className="mt-2 flex items-center gap-1 text-xs text-subtle hover:text-fg">
                         <BookmarkPlus className="h-3.5 w-3.5" /> Save to pricing library

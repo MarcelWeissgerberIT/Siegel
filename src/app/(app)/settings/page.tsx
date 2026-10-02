@@ -12,11 +12,11 @@ import { Badge, Button, Card, CopyButton, Field, Input, Select, Skeleton, Switch
 import { randomId } from "@/core/crypto";
 import { DEFAULT_MODELS } from "@/core/defaults";
 import { dateTime } from "@/core/format";
-import { CURRENCIES, WEBHOOK_EVENTS, type AiProvider, type Settings, type WebhookConfig } from "@/core/types";
+import { CURRENCIES, WEBHOOK_EVENTS, type AiProvider, type Settings, type StripeStatus, type WebhookConfig } from "@/core/types";
 import { cn } from "@/lib/cn";
 
 type Tab = "brand" | "ai" | "payments" | "webhooks" | "data";
-type S = Settings & { hasApiKey: boolean };
+type S = Settings & { hasApiKey: boolean; stripe: StripeStatus };
 
 const TABS: { id: Tab; label: string; icon: typeof Bot }[] = [
   { id: "brand", label: "Brand profile", icon: Building2 },
@@ -48,6 +48,136 @@ async function fileToLogo(file: File): Promise<string> {
   c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
   URL.revokeObjectURL(url);
   return c.toDataURL("image/png");
+}
+
+function StripeCard({ status, onChange }: { status: StripeStatus; onChange: (s: S) => void }) {
+  const toast = useToast();
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState<"connect" | "webhook" | "disconnect" | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+
+  async function connect(withKey: boolean) {
+    setBusy(withKey ? "connect" : "webhook");
+    try {
+      const r = await call((api) => api.connectStripe(withKey ? key : undefined));
+      onChange(r.settings);
+      setWarning(r.warning);
+      setKey("");
+      toast.success(r.message);
+    } catch (e) {
+      toast.error("Could not connect Stripe", (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function disconnect() {
+    setBusy("disconnect");
+    try {
+      onChange(await call((api) => api.disconnectStripe()));
+      setWarning(null);
+      toast.success("Stripe disconnected");
+    } catch (e) {
+      toast.error("Could not disconnect", (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card className="p-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-base font-semibold">Stripe Checkout</h2>
+        {status.connected ? (
+          <Badge tone={status.mode === "live" ? "ok" : "warn"}>
+            <CheckCircle2 className="h-3 w-3" /> Connected · {status.mode === "live" ? "live" : "test mode"}
+          </Badge>
+        ) : (
+          <Badge>Recommended</Badge>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-muted">
+        Paste one key. Every signature opens a Stripe Checkout for the exact deposit, and Siegel marks the proposal paid on its own. Card, Apple Pay, Google Pay
+        and SEPA, whatever your Stripe account offers.
+      </p>
+
+      {!status.available ? (
+        <p className="mt-5 rounded-xl bg-info-soft p-3 text-xs text-info">
+          The browser demo has no server that could keep a secret key, so it uses a simulated checkout. Self-host Siegel to connect your Stripe account.
+        </p>
+      ) : status.connected ? (
+        <div className="mt-5 space-y-4">
+          <dl className="grid gap-3 rounded-xl border border-line bg-sunken p-4 text-sm sm:grid-cols-[120px_1fr]">
+            <dt className="text-subtle">Key</dt>
+            <dd className="font-mono text-xs">
+              {status.keyHint}
+              {status.source === "env" && <span className="ml-2 font-sans text-subtle">from STRIPE_SECRET_KEY</span>}
+            </dd>
+            <dt className="text-subtle">Webhook</dt>
+            <dd className="min-w-0">
+              {status.webhook ? (
+                <span className="flex items-center gap-1.5 text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-ok" />
+                  <span className="truncate font-mono">{status.webhook.url}</span>
+                </span>
+              ) : (
+                <span className="text-xs text-muted">
+                  {status.webhookSecretSet ? "Added manually (signing secret saved)." : "Not registered. Payments still confirm when the client returns from checkout."}
+                </span>
+              )}
+            </dd>
+          </dl>
+          {status.mode === "test" && (
+            <p className="text-xs text-muted">
+              Test mode: pay with card <span className="font-mono">4242 4242 4242 4242</span>, any future date, any CVC. Switch to a live key when you&apos;re ready.
+            </p>
+          )}
+          <div className="flex flex-wrap justify-end gap-2">
+            {status.source === "settings" && (
+              <Button variant="danger" loading={busy === "disconnect"} onClick={disconnect}>
+                Disconnect
+              </Button>
+            )}
+            <Button variant="secondary" loading={busy === "webhook"} icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => connect(false)}>
+              {status.webhook ? "Re-check" : "Register webhook"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <form
+          className="mt-5 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            connect(true);
+          }}
+        >
+          <p className="text-sm text-muted">
+            In Stripe → Developers →{" "}
+            <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
+              API keys
+            </a>
+            , create a <span className="text-fg">restricted key</span> with write access to <span className="text-fg">Checkout Sessions</span> and{" "}
+            <span className="text-fg">Webhook Endpoints</span>. Your secret key works too.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="rk_live_… or rk_test_…"
+              autoComplete="off"
+              className="font-mono text-xs"
+            />
+            <Button variant="primary" type="submit" loading={busy === "connect"} disabled={!key.trim()} icon={<KeyRound className="h-3.5 w-3.5" />}>
+              Connect
+            </Button>
+          </div>
+          <p className="text-xs text-subtle">The key stays on your server. Siegel registers its webhook in your Stripe account automatically.</p>
+        </form>
+      )}
+      {warning && <p className="mt-4 rounded-xl bg-warn-soft p-3 text-xs text-warn">{warning}</p>}
+    </Card>
+  );
 }
 
 function SettingsInner() {
@@ -285,55 +415,76 @@ function SettingsInner() {
           )}
 
           {tab === "payments" && (
-            <Card className="p-6">
-              <h2 className="text-base font-semibold">Stripe deposits</h2>
-              <p className="mt-1 text-sm text-muted">No Stripe API keys needed. Siegel uses Payment Links plus one webhook.</p>
-              <ol className="mt-6 space-y-5 text-sm">
-                <li className="flex gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">1</span>
-                  <div>
-                    <div className="font-medium">Create a Payment Link per package</div>
-                    <p className="mt-0.5 text-muted">In Stripe → Payment Links, create a link for each deposit amount and paste it into the tier in the proposal editor.</p>
-                  </div>
-                </li>
-                <li className="flex gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">2</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">Add the webhook endpoint</div>
-                    <p className="mt-0.5 text-muted">Stripe → Developers → Webhooks → Add endpoint, event <code className="font-mono text-xs">checkout.session.completed</code>.</p>
-                    <div className="mt-2 flex gap-2">
-                      <Input readOnly value={webhookUrl} className="font-mono text-xs" />
-                      <CopyButton value={webhookUrl} size="md" />
-                    </div>
-                  </div>
-                </li>
-                <li className="flex gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">3</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">Paste the signing secret</div>
-                    <p className="mt-0.5 text-muted">Siegel verifies every webhook and marks the proposal paid via its <code className="font-mono text-xs">client_reference_id</code>.</p>
-                    <Input
-                      type="password"
-                      value={s.stripeWebhookSecret}
-                      onChange={(e) => setS({ ...s, stripeWebhookSecret: e.target.value })}
-                      placeholder="whsec_…"
-                      className="mt-2 font-mono text-xs"
-                    />
-                  </div>
-                </li>
-              </ol>
-              <Field label="Public URL" hint="used in links, emails and certificates" className="mt-6">
-                <Input value={s.publicUrl} onChange={(e) => setS({ ...s, publicUrl: e.target.value.replace(/\/$/, "") })} placeholder={baseUrl()} className="font-mono text-xs" />
-              </Field>
-              {MODE === "local" && (
-                <p className="mt-4 rounded-xl bg-info-soft p-3 text-xs text-info">This static demo has no server, so payments use a clearly labelled simulated checkout. Self-host Siegel to receive real Stripe webhooks.</p>
-              )}
-              <div className="mt-6 flex justify-end">
-                <Button variant="primary" loading={saving} onClick={() => save({ stripeWebhookSecret: s.stripeWebhookSecret, publicUrl: s.publicUrl })}>
-                  Save
-                </Button>
-              </div>
-            </Card>
+            <div className="space-y-6">
+              <StripeCard
+                status={s.stripe}
+                onChange={(next) => {
+                  setS(next);
+                  reload();
+                }}
+              />
+              <Card className="p-6">
+                <h2 className="text-base font-semibold">Payment Links</h2>
+                {s.stripe.connected ? (
+                  <p className="mt-1 text-sm text-muted">
+                    Not needed while Stripe is connected: every signature gets its own checkout for the exact deposit, so links on tiers are ignored.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-sm text-muted">No API key? Use one Stripe Payment Link per package and a webhook instead.</p>
+                    <ol className="mt-6 space-y-5 text-sm">
+                      <li className="flex gap-3">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">1</span>
+                        <div>
+                          <div className="font-medium">Create a Payment Link per package</div>
+                          <p className="mt-0.5 text-muted">In Stripe → Payment Links, create a link for each deposit amount and paste it into the tier in the proposal editor.</p>
+                        </div>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">2</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">Add the webhook endpoint</div>
+                          <p className="mt-0.5 text-muted">
+                            Stripe → Developers → Webhooks → Add endpoint, event <code className="font-mono text-xs">checkout.session.completed</code>.
+                          </p>
+                          <div className="mt-2 flex gap-2">
+                            <Input readOnly value={webhookUrl} className="font-mono text-xs" />
+                            <CopyButton value={webhookUrl} size="md" />
+                          </div>
+                        </div>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">3</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">Paste the signing secret</div>
+                          <p className="mt-0.5 text-muted">
+                            Siegel verifies every webhook and marks the proposal paid via its <code className="font-mono text-xs">client_reference_id</code>.
+                          </p>
+                          <Input
+                            type="password"
+                            value={s.stripeWebhookSecret}
+                            onChange={(e) => setS({ ...s, stripeWebhookSecret: e.target.value })}
+                            placeholder="whsec_…"
+                            className="mt-2 font-mono text-xs"
+                          />
+                        </div>
+                      </li>
+                    </ol>
+                  </>
+                )}
+                <Field label="Public URL" hint="used in client links, Stripe redirects, the webhook and certificates" className="mt-6">
+                  <Input value={s.publicUrl} onChange={(e) => setS({ ...s, publicUrl: e.target.value.replace(/\/$/, "") })} placeholder={baseUrl()} className="font-mono text-xs" />
+                </Field>
+                {MODE === "local" && (
+                  <p className="mt-4 rounded-xl bg-info-soft p-3 text-xs text-info">This static demo has no server, so payments use a clearly labelled simulated checkout. Self-host Siegel to take real payments.</p>
+                )}
+                <div className="mt-6 flex justify-end">
+                  <Button variant="primary" loading={saving} onClick={() => save({ stripeWebhookSecret: s.stripeWebhookSecret, publicUrl: s.publicUrl })}>
+                    Save
+                  </Button>
+                </div>
+              </Card>
+            </div>
           )}
 
           {tab === "webhooks" && (

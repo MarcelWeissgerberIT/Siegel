@@ -11,7 +11,8 @@ import type { ApiResult } from "@/core/handlers";
 
 type Checkout = ApiResult<"checkout">;
 
-// Demo checkout for the static build. Real installs redirect to the tier's Stripe Payment Link.
+// Opens Stripe Checkout for the deposit. In the static build (no server, no Stripe) it renders a
+// clearly labelled simulated checkout instead.
 function PayInner() {
   const token = useSearchParams().get("t") ?? "";
   const router = useRouter();
@@ -24,6 +25,7 @@ function PayInner() {
       .then((c) => {
         if (c.paid) router.replace(`/p/?t=${token}`);
         else if (c.url) window.location.href = c.url;
+        else if (c.processing) router.replace(`/p/?t=${token}&paid=1`);
         else if (!c.simulated) setError("Your agency will send you an invoice for the deposit.");
         else setInfo(c);
       })
@@ -44,7 +46,12 @@ function PayInner() {
   if (!info)
     return (
       <div className="grid min-h-screen place-items-center">
-        <Spinner />
+        <div className="flex flex-col items-center gap-3 text-sm text-muted">
+          <Spinner />
+          <span className="inline-flex items-center gap-1.5">
+            <Lock className="h-3.5 w-3.5" /> Opening secure checkout…
+          </span>
+        </div>
       </div>
     );
 
@@ -53,7 +60,7 @@ function PayInner() {
   return (
     <div className="min-h-screen bg-bg" style={{ ["--brand" as string]: info.accent }}>
       <div className="bg-warn px-4 py-2 text-center text-xs font-medium text-black">
-        <FlaskConical className="mr-1 inline h-3.5 w-3.5" /> Demo checkout: no real payment is made. In production, clients go to your Stripe Payment Link.
+        <FlaskConical className="mr-1 inline h-3.5 w-3.5" /> Demo checkout: no real payment is made. Self-hosted, clients pay on Stripe Checkout.
       </div>
       <div className="mx-auto grid max-w-5xl gap-0 md:min-h-[calc(100vh-32px)] md:grid-cols-2">
         <div className="px-6 py-10 md:px-12 md:py-16">

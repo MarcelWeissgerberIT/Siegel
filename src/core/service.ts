@@ -1,6 +1,7 @@
 import { buildDocument, createEvent, hashDocument, verifyRecord } from "./chain";
 import { randomId, sha256Hex } from "./crypto";
 import { mergeSettings, starterBlocks, starterTemplates } from "./defaults";
+import { fromMinor, isPublicHttps, STRIPE_WEBHOOK_EVENTS, stripeKeyHint, stripeKeyMode, toMinor, type StripeFactory, type StripeGateway } from "./payments";
 import type { Repo } from "./repo";
 import { computeStats } from "./stats";
 import type {
@@ -13,6 +14,7 @@ import type {
   Proposal,
   PublicProposal,
   Settings,
+  StripeStatus,
   Template,
   Tier,
   WebhookConfig,
@@ -32,6 +34,8 @@ export interface ServiceDeps {
   deliver: Deliver;
   mode: "server" | "local";
   allowSimulatedPayments: boolean;
+  /** Server only: talks to Stripe with the owner's key. envKey is STRIPE_SECRET_KEY. */
+  stripe?: { factory: StripeFactory; envKey?: string };
 }
 
 export class SiegelError extends Error {
@@ -107,18 +111,20 @@ export class SiegelService {
     return mergeSettings(await this.repo.getSettings());
   }
 
-  async maskedSettings(): Promise<Settings & { hasApiKey: boolean }> {
+  async maskedSettings(): Promise<Settings & { hasApiKey: boolean; stripe: StripeStatus }> {
     const s = await this.settings();
     return {
       ...s,
       hasApiKey: !!s.ai.apiKey,
       ai: { ...s.ai, apiKey: s.ai.apiKey ? MASK : "" },
       stripeWebhookSecret: s.stripeWebhookSecret ? MASK : "",
+      stripeSecretKey: s.stripeSecretKey ? MASK : "",
       webhooks: s.webhooks.map((w) => ({ ...w, secret: w.secret ? MASK : "" })),
+      stripe: this.stripeStatus(s),
     };
   }
 
-  async updateSettings(patch: Partial<Settings>): Promise<Settings & { hasApiKey: boolean }> {
+  async updateSettings(patch: Partial<Settings>): Promise<Settings & { hasApiKey: boolean; stripe: StripeStatus }> {
     const cur = await this.settings();
     const next: Settings = {
       ...cur,
@@ -129,12 +135,111 @@ export class SiegelService {
     };
     if (patch.ai && (patch.ai.apiKey === undefined || patch.ai.apiKey === MASK)) next.ai.apiKey = cur.ai.apiKey;
     if (patch.stripeWebhookSecret === MASK || patch.stripeWebhookSecret === undefined) next.stripeWebhookSecret = cur.stripeWebhookSecret;
+    // The Stripe connection only changes through connectStripe / disconnectStripe.
+    next.stripeSecretKey = cur.stripeSecretKey;
+    next.stripeWebhookEndpoint = cur.stripeWebhookEndpoint;
     // Keep existing secrets for webhooks when the client sends them masked.
     next.webhooks = next.webhooks.map((w) => {
       const prev = cur.webhooks.find((x) => x.id === w.id);
       return { ...w, secret: w.secret === MASK && prev ? prev.secret : w.secret || "whsec_" + randomId(24) };
     });
     await this.repo.saveSettings(next);
+    return this.maskedSettings();
+  }
+
+  // ------------------------------------------------------------------ stripe
+
+  private stripeKey(s: Settings) {
+    return s.stripeSecretKey || this.deps.stripe?.envKey || "";
+  }
+
+  private stripeStatus(s: Settings): StripeStatus {
+    const key = this.deps.stripe ? this.stripeKey(s) : "";
+    return {
+      available: !!this.deps.stripe,
+      connected: !!key,
+      source: !key ? null : s.stripeSecretKey ? "settings" : "env",
+      mode: key ? stripeKeyMode(key) : null,
+      keyHint: key ? stripeKeyHint(key) : "",
+      webhook: s.stripeWebhookEndpoint,
+      webhookSecretSet: !!s.stripeWebhookSecret,
+    };
+  }
+
+  /** The Stripe gateway when a key is configured (server only), else null. */
+  async stripeGateway(): Promise<StripeGateway | null> {
+    if (!this.deps.stripe) return null;
+    const key = this.stripeKey(await this.settings());
+    return key ? this.deps.stripe.factory(key) : null;
+  }
+
+  /**
+   * Connects Stripe with a secret or restricted key and registers the webhook endpoint,
+   * so the owner never has to copy a signing secret. Passing no key re-registers the
+   * webhook with the current key (e.g. after setting the public URL).
+   */
+  async connectStripe(input: { key?: string }, ctx: Ctx) {
+    if (!this.deps.stripe) throw new SiegelError("Connecting Stripe needs a self-hosted Siegel server.", 400);
+    const cur = await this.settings();
+    const typed = input.key?.trim() && input.key !== MASK ? input.key.trim() : "";
+    const key = typed || this.stripeKey(cur);
+    if (!key) throw new SiegelError("Paste your Stripe secret or restricted key.");
+    if (key.startsWith("pk_")) throw new SiegelError("That's a publishable key. Siegel needs a secret or restricted key.");
+    if (!stripeKeyMode(key)) throw new SiegelError("That doesn't look like a Stripe secret key. It starts with rk_live_, rk_test_, sk_live_ or sk_test_.");
+    const gw = this.deps.stripe.factory(key);
+    await gw.verify();
+
+    const keyChanged = !!typed && typed !== cur.stripeSecretKey;
+    const next: Settings = { ...cur, stripeSecretKey: typed || cur.stripeSecretKey };
+    const target = `${ctx.baseUrl.replace(/\/$/, "")}/api/stripe/webhook`;
+    let warning: string | null = null;
+
+    const old = cur.stripeWebhookEndpoint;
+    if (old && (keyChanged || old.url !== target)) {
+      // Best effort: the old endpoint may belong to another account or be gone already.
+      await this.deps.stripe
+        .factory(this.stripeKey(cur) || key)
+        .deleteWebhook(old.id)
+        .catch(() => {});
+      next.stripeWebhookEndpoint = null;
+      next.stripeWebhookSecret = "";
+    }
+    if (!next.stripeWebhookEndpoint) {
+      if (!isPublicHttps(target)) {
+        warning = `Stripe can only send webhooks to a public HTTPS address, and this instance is at ${ctx.baseUrl}. Payments are still confirmed when the client returns from checkout. Once Siegel is online, set the public URL and click "Register webhook".`;
+      } else {
+        try {
+          const hook = await gw.createWebhook(target, STRIPE_WEBHOOK_EVENTS);
+          next.stripeWebhookEndpoint = { id: hook.id, url: target };
+          next.stripeWebhookSecret = hook.secret;
+        } catch (err) {
+          warning = `Payments work, but the webhook could not be registered (${(err as Error).message}). Give the key write access to Webhook Endpoints, or add the endpoint manually below.`;
+        }
+      }
+    }
+    await this.repo.saveSettings(next);
+    const mode = stripeKeyMode(key) === "live" ? "live mode" : "test mode";
+    return {
+      message: `Stripe connected in ${mode}.${next.stripeWebhookEndpoint ? " Webhook registered." : ""}`,
+      warning,
+      settings: await this.maskedSettings(),
+    };
+  }
+
+  async disconnectStripe() {
+    const cur = await this.settings();
+    if (cur.stripeWebhookEndpoint && this.deps.stripe && this.stripeKey(cur)) {
+      await this.deps.stripe
+        .factory(this.stripeKey(cur))
+        .deleteWebhook(cur.stripeWebhookEndpoint.id)
+        .catch(() => {});
+    }
+    await this.repo.saveSettings({
+      ...cur,
+      stripeSecretKey: "",
+      stripeWebhookEndpoint: null,
+      stripeWebhookSecret: cur.stripeWebhookEndpoint ? "" : cur.stripeWebhookSecret,
+    });
     return this.maskedSettings();
   }
 
@@ -340,6 +445,7 @@ export class SiegelService {
       documentHash = v.hash;
     }
     const sig = p.signature;
+    const stripeCheckout = !!this.deps.stripe && !!this.stripeKey(s);
     return {
       id: p.id,
       number: p.number,
@@ -372,8 +478,9 @@ export class SiegelService {
           }
         : null,
       payment: p.payment,
-      paymentConfigured: p.tiers.some((t) => !!t.paymentLink),
+      paymentConfigured: stripeCheckout || p.tiers.some((t) => !!t.paymentLink),
       checkoutMode: this.deps.allowSimulatedPayments ? "simulated" : "stripe",
+      stripeCheckout,
     };
   }
 
@@ -479,14 +586,17 @@ export class SiegelService {
         signer: { name, email: input.email.trim() },
         docHash: v.hash,
       });
+      // With a Stripe key the checkout session is created on the pay page (outside this transaction).
+      const stripeCheckout = deposit > 0 && !!this.deps.stripe && !!this.stripeKey(await this.settings());
       const live = p.tiers.find((t) => t.id === tier.id);
-      const url = live?.paymentLink ? paymentUrl(live.paymentLink, p.id, input.email.trim()) : null;
+      const url = !stripeCheckout && live?.paymentLink ? paymentUrl(live.paymentLink, p.id, input.email.trim()) : null;
       return {
         ok: true,
         deposit,
         currency: v.content.currency,
         paymentUrl: url,
-        simulated: !url && this.deps.allowSimulatedPayments && deposit > 0,
+        checkout: stripeCheckout,
+        simulated: !url && !stripeCheckout && this.deps.allowSimulatedPayments && deposit > 0,
       };
     });
   }
@@ -511,25 +621,103 @@ export class SiegelService {
     });
   }
 
-  /** Where to send a signed client to pay the deposit. */
-  async checkout(token: string) {
+  /**
+   * Where to send a signed client to pay the deposit. With a Stripe key this opens (or
+   * reuses) a Checkout Session for the exact deposit; otherwise the tier's Payment Link.
+   */
+  async checkout(token: string, ctx: Ctx) {
     const p = await this.repo.getProposalByToken(token);
     if (!p || !p.signature) throw new SiegelError("Sign the proposal first.", 409);
-    const live = p.tiers.find((t) => t.id === p.signature!.tierId);
-    const url = live?.paymentLink ? paymentUrl(live.paymentLink, p.id, p.signature.email) : null;
-    return {
+    const s = await this.settings();
+    const info = {
       paid: !!p.payment,
-      url,
-      simulated: !url && this.deps.allowSimulatedPayments,
+      url: null as string | null,
+      processing: false,
+      simulated: false,
       deposit: p.signature.deposit,
       currency: p.currency,
       tierName: p.signature.tierName,
       number: p.number,
       title: p.title,
-      company: (await this.settings()).brand.companyName,
-      accent: (await this.settings()).brand.accent,
+      company: s.brand.companyName,
+      accent: s.brand.accent,
       email: p.signature.email,
     };
+    if (p.payment || p.signature.deposit <= 0) return info;
+    const gw = await this.stripeGateway();
+    if (gw) {
+      const r = await this.openCheckoutSession(p, gw, ctx);
+      return { ...info, ...r };
+    }
+    const live = p.tiers.find((t) => t.id === p.signature!.tierId);
+    const url = live?.paymentLink ? paymentUrl(live.paymentLink, p.id, p.signature.email) : null;
+    return { ...info, url, simulated: !url && this.deps.allowSimulatedPayments };
+  }
+
+  private async openCheckoutSession(p: Proposal, gw: StripeGateway, ctx: Ctx): Promise<{ url: string | null; paid: boolean; processing: boolean }> {
+    const sig = p.signature!;
+    // Reuse the open session so a double click or a reload never creates a second charge.
+    if (p.checkout && Date.parse(p.checkout.expiresAt) - Date.now() > 10 * 60_000) {
+      const prev = await gw.retrieveCheckout(p.checkout.sessionId).catch(() => null);
+      if (prev && prev.clientReferenceId === p.id) {
+        if (prev.paymentStatus === "paid") {
+          await this.markPaid(p.id, this.stripePayment(prev, p.currency), ctx);
+          return { url: null, paid: true, processing: false };
+        }
+        if (prev.status === "complete") return { url: null, paid: false, processing: true };
+        if (prev.status === "open" && prev.url) return { url: prev.url, paid: false, processing: false };
+      }
+    }
+    const base = ctx.baseUrl.replace(/\/$/, "");
+    const brand = (await this.settings()).brand;
+    const session = await gw.createCheckout({
+      amountMinor: toMinor(sig.deposit, p.currency),
+      currency: p.currency,
+      productName: `Deposit · ${p.number} · ${sig.tierName}`,
+      description: `${p.title}${brand.companyName ? ` · ${brand.companyName}` : ""}`,
+      clientReferenceId: p.id,
+      customerEmail: sig.email,
+      successUrl: `${base}/p/?t=${p.token}&paid=1&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${base}/p/?t=${p.token}`,
+      metadata: { siegel_proposal_id: p.id, siegel_number: p.number, siegel_doc_hash: sig.docHash },
+    });
+    if (!session.url) throw new SiegelError("Stripe did not return a checkout URL.", 502);
+    await this.repo.transaction(async () => {
+      const cur = await this.mustGet(p.id);
+      await this.repo.saveProposal({ ...cur, checkout: { sessionId: session.id, url: session.url!, expiresAt: new Date(session.expiresAt * 1000).toISOString() } });
+    });
+    return { url: session.url, paid: false, processing: false };
+  }
+
+  private stripePayment(session: { id: string; amountTotal: number | null; currency: string | null }, currency: string) {
+    const amount = session.amountTotal != null ? fromMinor(session.amountTotal, session.currency || currency) : undefined;
+    return { method: "stripe" as const, reference: session.id, amount };
+  }
+
+  /** Called when the client returns from Stripe Checkout: asks Stripe directly instead of waiting for the webhook. */
+  async confirmCheckout(token: string, sessionId: string, ctx: Ctx) {
+    const p = await this.repo.getProposalByToken(token);
+    if (!p || !p.signature) throw new SiegelError("Proposal not found.", 404);
+    if (p.payment) return { paid: true, processing: false };
+    const gw = await this.stripeGateway();
+    if (!gw || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return { paid: false, processing: false };
+    const session = await gw.retrieveCheckout(sessionId);
+    if (session.clientReferenceId !== p.id) throw new SiegelError("This payment belongs to a different proposal.", 409);
+    if (session.paymentStatus === "paid") {
+      await this.markPaid(p.id, this.stripePayment(session, p.currency), ctx);
+      return { paid: true, processing: false };
+    }
+    // Delayed methods (e.g. SEPA debit) complete the session first; the webhook confirms later.
+    return { paid: false, processing: session.status === "complete" };
+  }
+
+  /** Stripe webhook: checkout.session.completed / async_payment_succeeded. Unknown sessions are ignored. */
+  async stripeSessionPaid(session: { id: string; clientReferenceId: string | null; amountTotal: number | null; currency: string | null }, ctx: Ctx) {
+    if (!session.clientReferenceId) return false;
+    const p = await this.repo.getProposal(session.clientReferenceId);
+    if (!p || !p.signature) return false;
+    await this.markPaid(p.id, this.stripePayment(session, p.currency), ctx);
+    return true;
   }
 
   /** Simulated checkout used by the static demo (never enabled for real installs). */

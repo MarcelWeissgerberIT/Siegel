@@ -36,6 +36,8 @@ export function defaultSettings(): Settings {
     ai: { provider: "demo", model: DEFAULT_MODELS.demo, apiKey: "" },
     webhooks: [],
     stripeWebhookSecret: "",
+    stripeSecretKey: "",
+    stripeWebhookEndpoint: null,
     publicUrl: "",
   };
 }

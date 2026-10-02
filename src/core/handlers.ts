@@ -22,6 +22,7 @@ export const PUBLIC_METHODS = new Set([
   "sign",
   "simulatePayment",
   "checkout",
+  "confirmCheckout",
   "evidence",
   "verifyById",
   "verifyEvidence",
@@ -60,6 +61,8 @@ export function createHandlers(service: SiegelService, env: HandlerEnv) {
     getSettings: async () => service.maskedSettings(),
     updateSettings: async (_c: HandlerCtx, patch: Partial<Settings>) => service.updateSettings(patch),
     revealWebhookSecret: async (_c: HandlerCtx, id: string) => service.webhookSecret(id),
+    connectStripe: async (c: HandlerCtx, key?: string) => service.connectStripe({ key }, c),
+    disconnectStripe: async () => service.disconnectStripe(),
     testAi: async (_c: HandlerCtx, cfg?: Partial<AiConfig>) => {
       const s = await service.settings();
       const merged: AiConfig = { ...s.ai, ...(cfg ?? {}) };
@@ -134,7 +137,8 @@ export function createHandlers(service: SiegelService, env: HandlerEnv) {
     recordView: async (c: HandlerCtx, token: string, sessionId: string) => service.recordView(token, sessionId, c),
     heartbeat: async (_c: HandlerCtx, token: string, sessionId: string, seconds: number) => service.heartbeat(token, sessionId, seconds),
     sign: async (c: HandlerCtx, token: string, input: SignInput) => service.sign(token, input, c),
-    checkout: async (_c: HandlerCtx, token: string) => service.checkout(token),
+    checkout: async (c: HandlerCtx, token: string) => service.checkout(token, c),
+    confirmCheckout: async (c: HandlerCtx, token: string, sessionId: string) => service.confirmCheckout(token, sessionId, c),
     simulatePayment: async (c: HandlerCtx, token: string) => {
       await service.simulatePayment(token, c);
       return { ok: true };

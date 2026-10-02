@@ -39,7 +39,7 @@ const STEPS = [
   { n: "01", icon: Sparkles, title: "Paste the call notes", body: "Messy notes or a full transcript. Claude, GPT or any OpenRouter model drafts the problem, scope, deliverables, timeline and three pricing tiers.", time: "0:00" },
   { n: "02", icon: MousePointerClick, title: "Edit inline, send one link", body: "Click any sentence to change it. Publishing fingerprints the exact version your client will see.", time: "1:30" },
   { n: "03", icon: FileSignature, title: "Client picks a tier & signs", body: "A gorgeous, mobile-first proposal page. Typed name plus drawn signature, bound to the document hash.", time: "3:10" },
-  { n: "04", icon: CircleDollarSign, title: "Deposit, instantly", body: "Straight from the signature to your Stripe Payment Link. The webhook marks it paid automatically.", time: "4:05" },
+  { n: "04", icon: CircleDollarSign, title: "Deposit, instantly", body: "Straight from the signature to Stripe Checkout for the exact deposit. Siegel marks it paid on its own.", time: "4:05" },
   { n: "05", icon: Webhook, title: "Onboarding runs itself", body: "proposal.viewed, .signed and .paid webhooks trigger n8n, Make or Zapier the second they happen.", time: "4:20" },
 ];
 
@@ -50,7 +50,7 @@ const FEATURES = [
   { icon: Clock3, title: "View tracking", body: "Know when they opened it, how often, on which device and for how long." },
   { icon: ShieldCheck, title: "Verifiable e-signatures", body: "SHA-256 document fingerprint plus a hash-chained audit trail with IP and user agent." },
   { icon: ScrollText, title: "Certificate of Completion", body: "A PDF with the evidence embedded, so anyone can re-verify it, forever." },
-  { icon: Receipt, title: "Stripe Payment Links", body: "One link per tier. No API keys, no PCI scope. Paid status via signed webhook." },
+  { icon: Receipt, title: "Stripe, one key", body: "Paste one key: every signature gets its own checkout, webhook registered for you. Payment Links work too." },
   { icon: MoonStar, title: "Dark & light, mobile-first", body: "Linear-grade dashboard, Stripe-grade client page. Fully English UI." },
   { icon: Server, title: "One container, SQLite", body: "docker compose up. Or one click on Railway / Render. All data local." },
 ];
@@ -309,7 +309,7 @@ export default function Landing() {
             <h2 className="mt-4 font-serif text-4xl leading-[1.05] tracking-tight sm:text-5xl">One container. One SQLite file. Yours.</h2>
             <p className="mt-5 max-w-md text-muted">Next.js + SQLite in a single Docker image. Deploy on any VPS, or one click on Railway or Render. Bring your own AI key, no vendor lock-in.</p>
             <div className="mt-6 flex flex-wrap gap-2 text-xs">
-              {["Next.js 16", "SQLite (WAL)", "Docker", "Railway", "Render", "Anthropic · OpenAI · OpenRouter", "Stripe Payment Links", "n8n · Make · Zapier"].map((t) => (
+              {["Next.js 16", "SQLite (WAL)", "Docker", "Railway", "Render", "Anthropic · OpenAI · OpenRouter", "Stripe Checkout", "n8n · Make · Zapier"].map((t) => (
                 <span key={t} className="rounded-full border border-line bg-elev px-3 py-1 text-muted">
                   {t}
                 </span>

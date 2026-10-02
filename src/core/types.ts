@@ -93,6 +93,8 @@ export interface Proposal {
   payment: Payment | null;
   stats: { views: number; seconds: number; lastViewedAt: string | null };
   tamperBackup: ProposalDocument | null; // demo only: original content while "tampered"
+  /** Last Stripe Checkout Session opened for the deposit (reused while it is still open). */
+  checkout?: { sessionId: string; url: string; expiresAt: string } | null;
 }
 
 /** The exact content a client sees and signs. Hashed with SHA-256 over canonical JSON. */
@@ -189,7 +191,22 @@ export interface Settings {
   ai: AiConfig;
   webhooks: WebhookConfig[];
   stripeWebhookSecret: string;
+  /** Stripe secret or restricted key (server only). Set via connectStripe, never via updateSettings. */
+  stripeSecretKey: string;
+  /** Webhook endpoint Siegel registered in Stripe itself. */
+  stripeWebhookEndpoint: { id: string; url: string } | null;
   publicUrl: string; // base URL used in links/certificates; "" = derive from browser
+}
+
+/** What the settings page may know about the Stripe connection (never the key itself). */
+export interface StripeStatus {
+  available: boolean; // false in the static demo: there is no server to hold a key
+  connected: boolean;
+  source: "settings" | "env" | null;
+  mode: "live" | "test" | null;
+  keyHint: string;
+  webhook: { id: string; url: string } | null;
+  webhookSecretSet: boolean;
 }
 
 export interface Template {
@@ -279,6 +296,8 @@ export interface PublicProposal {
   paymentConfigured: boolean;
   /** "server" mode can redirect to Stripe; otherwise the simulated checkout is used */
   checkoutMode: "stripe" | "simulated";
+  /** Stripe is connected with an API key: a Checkout Session is created for the exact deposit. */
+  stripeCheckout: boolean;
 }
 
 export interface DashboardStats {

@@ -25,7 +25,7 @@ Agencies lose deals between the sales call and the signature. Writing a proposal
 | 1 | **Paste call notes** | AI (bring your own key: **Anthropic, OpenAI or OpenRouter**) drafts problem summary, scope, deliverables, timeline and 2–3 pricing tiers. Works offline with a built-in demo drafter. |
 | 2 | **Edit inline, send one link** | Click any sentence to edit; autosaved. Publishing fingerprints the exact version the client will see. |
 | 3 | **Client picks a tier & signs** | A beautiful, mobile-first proposal page. Typed name + drawn signature, bound to the document hash. |
-| 4 | **Instant deposit** | Straight from the signature to the tier's **Stripe Payment Link** (`client_reference_id` attached). A verified Stripe webhook marks it paid. |
+| 4 | **Instant deposit** | Straight from the signature to **Stripe Checkout** for exactly the deposit of the chosen package. Paste one Stripe key; Siegel creates the checkout and registers its own webhook. (Prefer no key? Payment Links per tier work too.) |
 | 5 | **Automations fire** | Signed webhooks `proposal.viewed`, `proposal.signed`, `proposal.paid` (+ `proposal.sent`) kick off onboarding in **n8n, Make or Zapier**. |
 
 <p align="center"><img src="docs/screenshots/dashboard.jpg" alt="Dashboard" width="100%" /></p>
@@ -66,7 +66,7 @@ sha256(c(evidence.document)) === evidence.documentHash
 - [x] **Reusable templates** and a **pricing library** (insert packages into any proposal)
 - [x] **Public proposal page** with **view tracking** (opens, sessions, device, IP, time on page)
 - [x] **E-signature** with hash-chained audit log and **PDF certificate** with embedded evidence
-- [x] **Stripe Payment Link per tier** + verified `checkout.session.completed` webhook
+- [x] **Stripe Checkout with one key**: a checkout per signature for the exact deposit, confirmed the moment the client returns, plus an auto-registered webhook. Or **Payment Links per tier** without a key
 - [x] **Outgoing webhooks** with HMAC-SHA256 signatures, delivery log and test button
 - [x] **Single-user auth** (scrypt-hashed password, session cookies, login rate limit), **SQLite**, **one Docker container**
 - [x] **Installable PWA**: add Siegel to your home screen or dock; app shortcuts (New proposal, Dashboard, Verify); the browser demo works fully offline
@@ -104,14 +104,24 @@ Data lives in the `siegel-data` volume (`/data/siegel.db`, SQLite in WAL mode). 
 |---|---|---|
 | `SIEGEL_PASSWORD` | – | Owner password. If unset, you create one on first visit (stored scrypt-hashed). |
 | `SIEGEL_PUBLIC_URL` | request host | Base URL for client links, emails and certificates, e.g. `https://proposals.youragency.com`. Also settable in *Settings → Payments*. |
-| `STRIPE_WEBHOOK_SECRET` | – | Stripe signing secret (`whsec_…`). Also settable in *Settings → Payments*. |
+| `STRIPE_SECRET_KEY` | – | Stripe secret or restricted key. Alternative to *Settings → Payments → Connect*. |
+| `STRIPE_WEBHOOK_SECRET` | – | Signing secret (`whsec_…`) of a webhook endpoint you added by hand. Not needed when Siegel registers the webhook itself. |
 | `SIEGEL_DATA_DIR` | `./data` (`/data` in Docker) | Where `siegel.db` lives. |
 | `SIEGEL_DEMO` | `0` | `1` turns an instance into a demo: sample data, password `demo`, simulated checkout, tamper test. **Never on a real install.** |
 | `PORT` | `3000` | HTTP port. |
 
 **AI provider** (*Settings → AI provider*): pick Anthropic (default model `claude-opus-5-5`), OpenAI or OpenRouter, paste your key, *Test connection*. Any model ID works. Anthropic calls use structured outputs (JSON schema) and the server-side refusal fallback; OpenAI uses strict JSON schema; OpenRouter uses JSON mode with schema validation. Without a key, the offline demo drafter still produces a solid draft.
 
-**Stripe** (*Settings → Payments*): create a Payment Link per deposit amount and paste it into the tier. Add a webhook endpoint `https://<your-host>/api/stripe/webhook` for `checkout.session.completed` and paste its signing secret. Siegel appends `client_reference_id=<proposal id>` and `prefilled_email` to the link and marks the proposal paid when Stripe confirms. No Stripe API keys needed.
+**Stripe** (*Settings → Payments*), recommended: create a [restricted key](https://dashboard.stripe.com/apikeys) with write access to **Checkout Sessions** and **Webhook Endpoints** (a secret key works too), paste it and click *Connect*. That's all:
+
+- When a client signs, Siegel opens a Stripe Checkout for the deposit of exactly the package and version they signed (`client_reference_id` = proposal, signer's email prefilled, document hash in the metadata). Card, Apple Pay, Google Pay, SEPA: whatever your Stripe account has enabled.
+- When the client comes back, Siegel asks Stripe directly and marks the proposal paid. The webhook (`checkout.session.completed`, `checkout.session.async_payment_succeeded`) is registered in your Stripe account automatically and covers clients who close the tab and delayed methods like SEPA.
+- Stripe only delivers webhooks to a public HTTPS URL. On `localhost` Siegel skips registration and still confirms payments on return; click *Register webhook* once it's online.
+- If a permission is missing, Stripe's error names it and Siegel shows it as is.
+
+Without a key: create a Payment Link per deposit amount and paste it into the tier, add the endpoint `https://<your-host>/api/stripe/webhook` for `checkout.session.completed` and paste its signing secret. Siegel appends `client_reference_id` and `prefilled_email` to the link.
+
+Tip: `STRIPE_API_BASE=http://localhost:12111` points Siegel at [stripe-mock](https://github.com/stripe/stripe-mock) for offline testing.
 
 **Webhooks** (*Settings → Webhooks*): add your n8n / Make / Zapier URL, choose events. Each request carries `X-Siegel-Event` and `X-Siegel-Signature: t=<unix>,v1=<hex>` where `v1 = HMAC_SHA256(secret, t + "." + rawBody)`.
 
@@ -147,6 +157,7 @@ Because there's no server in that build, client links only work in the browser t
 src/
   core/          isomorphic business logic (runs in Node and in the browser)
     service.ts     proposals, versions, signing, payments, webhooks, tamper test
+    payments.ts    Stripe Checkout gateway interface (server injects the official SDK)
     chain.ts       canonical document, hash-chained events, verification
     certificate.ts PDF certificate (pdf-lib) + evidence embedding/extraction
     ai.ts          Anthropic SDK / OpenAI / OpenRouter drafting with JSON schema

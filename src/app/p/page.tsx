@@ -40,6 +40,7 @@ function PublicProposalInner() {
   const token = params.get("t") ?? "";
   const preview = params.get("preview") === "1";
   const justPaid = params.get("paid") === "1";
+  const stripeSession = params.get("session_id") ?? "";
   const router = useRouter();
   const toast = useToast();
   const [data, setData] = useState<PublicProposal | null>(null);
@@ -50,7 +51,8 @@ function PublicProposalInner() {
   const [sig, setSig] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [signing, setSigning] = useState(false);
-  const [sealed, setSealed] = useState<{ paymentUrl: string | null; simulated: boolean } | null>(null);
+  const [sealed, setSealed] = useState<{ paymentUrl: string | null; simulated: boolean; checkout: boolean } | null>(null);
+  const [processing, setProcessing] = useState(false);
   const [certBusy, setCertBusy] = useState(false);
   const lastBeat = useRef(0);
 
@@ -99,13 +101,25 @@ function PublicProposalInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, preview, !!data]);
 
-  // Waiting for Stripe's webhook after returning from checkout.
+  // Back from Stripe Checkout: ask Stripe directly, then keep polling for the webhook as a fallback.
   useEffect(() => {
     if (!justPaid || !data || data.payment) return;
+    let cancelled = false;
+    if (stripeSession)
+      call((api) => api.confirmCheckout(token, stripeSession))
+        .then((r) => {
+          if (cancelled) return;
+          if (r.paid) load();
+          else setProcessing(r.processing);
+        })
+        .catch(() => {});
     const t = setInterval(load, 3000);
-    return () => clearInterval(t);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [justPaid, !!data?.payment]);
+  }, [justPaid, !!data, !!data?.payment]);
 
   const doc = data?.document;
   const tier = doc?.tiers.find((t) => t.id === tierId) ?? null;
@@ -147,7 +161,7 @@ function PublicProposalInner() {
     setSigning(true);
     try {
       const res = await call((api) => api.sign(token, { tierId: tier.id, name, email, image: sig, docHash: data.documentHash, consent }));
-      setSealed({ paymentUrl: res.paymentUrl, simulated: res.simulated });
+      setSealed({ paymentUrl: res.paymentUrl, simulated: res.simulated, checkout: res.checkout });
     } catch (e) {
       toast.error("Could not sign", (e as Error).message);
     } finally {
@@ -157,7 +171,7 @@ function PublicProposalInner() {
 
   function continueAfterSeal() {
     if (sealed?.paymentUrl) window.location.href = sealed.paymentUrl;
-    else if (sealed?.simulated) router.push(`/p/pay/?t=${token}`);
+    else if (sealed?.checkout || sealed?.simulated) router.push(`/p/pay/?t=${token}`);
     else {
       setSealed(null);
       load();
@@ -176,7 +190,7 @@ function PublicProposalInner() {
     }
   }
 
-  const ctaLabel = sealed?.paymentUrl || sealed?.simulated ? `Pay ${money(deposit, doc.currency, { cents: deposit % 1 !== 0 })} deposit` : "View signed proposal";
+  const ctaLabel = sealed?.paymentUrl || sealed?.checkout || sealed?.simulated ? `Pay ${money(deposit, doc.currency, { cents: deposit % 1 !== 0 })} deposit` : "View signed proposal";
 
   return (
     <div style={{ ["--brand" as string]: brand }} className="min-h-screen pb-28 lg:pb-0">
@@ -347,7 +361,7 @@ function PublicProposalInner() {
           {/* Sign / signed */}
           <section id="sign" className="scroll-mt-8">
             {signed ? (
-              <SignedState data={data} justPaid={justPaid} onCertificate={certificate} certBusy={certBusy} token={token} />
+              <SignedState data={data} justPaid={justPaid} processing={processing} onCertificate={certificate} certBusy={certBusy} token={token} />
             ) : (
               <div className="overflow-hidden rounded-3xl border border-line bg-elev shadow-soft">
                 <div className="border-b border-line bg-sunken px-6 py-5 sm:px-8">
@@ -473,12 +487,14 @@ function PublicProposalInner() {
 function SignedState({
   data,
   justPaid,
+  processing,
   onCertificate,
   certBusy,
   token,
 }: {
   data: PublicProposal;
   justPaid: boolean;
+  processing: boolean;
   onCertificate: () => void;
   certBusy: boolean;
   token: string;
@@ -506,11 +522,13 @@ function SignedState({
           {paid
             ? `Deposit of ${money(data.payment!.amount, doc.currency, { cents: true })} received. ${data.brand.contactName} will be in touch with next steps.`
             : justPaid
-              ? "Stripe usually confirms within a few seconds."
+              ? processing
+                ? "Your payment is processing. Bank payments can take a few days; this page updates as soon as Stripe confirms it."
+                : "Stripe usually confirms within a few seconds."
               : `The ${money(sig.deposit, doc.currency, { cents: true })} deposit secures your start date.`}
         </p>
         <div className="mt-6 flex flex-wrap gap-2">
-          {!paid && !justPaid && sig.deposit > 0 && (live?.paymentLink || data.checkoutMode === "simulated") && (
+          {!paid && !justPaid && sig.deposit > 0 && (live?.paymentLink || data.stripeCheckout || data.checkoutMode === "simulated") && (
             <Link
               href={`/p/pay/?t=${token}`}
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--brand)] px-5 text-sm font-medium text-white transition hover:brightness-110"

@@ -4,6 +4,7 @@ import { seedDemo } from "@/core/seed";
 import { SiegelService, type Ctx } from "@/core/service";
 import { createFetchDeliver } from "@/core/webhooks";
 import { SqliteRepo } from "./sqlite-repo";
+import { createStripeGateway } from "./stripe";
 
 interface Instance {
   repo: SqliteRepo;
@@ -25,6 +26,7 @@ export function instance(): Instance {
     deliver: createFetchDeliver({ browser: false }),
     mode: "server",
     allowSimulatedPayments: DEMO,
+    stripe: { factory: createStripeGateway, envKey: process.env.STRIPE_SECRET_KEY?.trim() || undefined },
   });
   const handlers = createHandlers(service, { browser: false, demo: DEMO });
   const ready = (async () => {

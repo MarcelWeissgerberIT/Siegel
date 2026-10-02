@@ -11,7 +11,9 @@ services:
       SIEGEL_PASSWORD: ${SIEGEL_PASSWORD:-}
       # Public base URL used in client links and certificates, e.g. https://proposals.youragency.com
       SIEGEL_PUBLIC_URL: ${SIEGEL_PUBLIC_URL:-}
-      # Optional: overrides the Stripe signing secret set in Settings → Payments.
+      # Optional: Stripe secret/restricted key (or connect Stripe in Settings → Payments).
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # Optional: signing secret of a webhook endpoint you added in Stripe by hand.
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       # 1 = demo instance: seeds sample data, password "demo", simulated checkout, tamper test.
       SIEGEL_DEMO: ${SIEGEL_DEMO:-0}
