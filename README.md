@@ -8,7 +8,7 @@ From call notes to signed and paid in under 5 minutes, with signatures you can a
 
 <p align="center">
   <a href="https://marcelweissgerberit.github.io/Siegel/"><b>▶ Live demo</b></a> ·
-  <a href="https://marcelweissgerberit.github.io/Siegel/siegel-pitch.mp4">60-second pitch video</a> ·
+  <a href="public/siegel-pitch.mp4">60-second pitch video</a> ·
   <a href="#self-host-in-one-command">Self-host</a> ·
   <a href="#verifiable-signatures">How the proof works</a>
 </p>
@@ -69,6 +69,7 @@ sha256(c(evidence.document)) === evidence.documentHash
 - [x] **Stripe Payment Link per tier** + verified `checkout.session.completed` webhook
 - [x] **Outgoing webhooks** with HMAC-SHA256 signatures, delivery log and test button
 - [x] **Single-user auth** (scrypt-hashed password, session cookies, login rate limit), **SQLite**, **one Docker container**
+- [x] **Installable PWA**: add Siegel to your home screen or dock; app shortcuts (New proposal, Dashboard, Verify); the browser demo works fully offline
 - [x] Dark and light mode, mobile-first client page, fully English UI
 - [x] Data export (JSON), no vendor lock-in; AI key stored server-side, never sent to the browser
 
@@ -125,6 +126,14 @@ Data lives in the `siegel-data` volume (`/data/siegel.db`, SQLite in WAL mode). 
             "deposit": 4750, "signer": { "name": "…", "email": "…" }, "docHash": "9f2c…" }
 }
 ```
+
+## Install it as an app (PWA)
+
+Siegel ships a web app manifest and a service worker, so Chrome, Edge and Safari offer **Install** / **Add to Home Screen** (there's also an "Install Siegel as an app" button in the sidebar). The installed app opens in its own window with shortcuts for *New proposal*, *Dashboard* and *Verify*.
+
+- App pages and build assets are cached; pages are network-first, so updates show up immediately when online.
+- `/api/*` (auth, RPC, Stripe webhooks) is never cached.
+- In the browser demo, all data lives in IndexedDB, so once installed it **works completely offline**: draft, edit, sign, verify.
 
 ## The live demo
 

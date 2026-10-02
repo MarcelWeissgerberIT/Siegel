@@ -1,0 +1,33 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Cap,Geist Medium,42,&H00FFFFFF,&H00FFFFFF,&H64080706,&H96000000,0,0,0,0,100,100,0,0,3,14,0,2,200,200,46,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:03.32,Cap,,0,0,0,,{\fad(120,120)}Agencies don't lose deals on the sales call.
+Dialogue: 0,0:00:03.62,0:00:06.76,Cap,,0,0,0,,{\fad(120,120)}They lose them in the gap between the call and the signature.
+Dialogue: 0,0:00:06.76,0:00:08.71,Cap,,0,0,0,,{\fad(120,120)}Hours writing a proposal.
+Dialogue: 0,0:00:09.02,0:00:10.83,Cap,,0,0,0,,{\fad(120,120)}A PDF nobody reads.
+Dialogue: 0,0:00:11.11,0:00:13.92,Cap,,0,0,0,,{\fad(120,120)}One tool to sign, and another one to get paid.
+Dialogue: 0,0:00:13.92,0:00:18.87,Cap,,0,0,0,,{\fad(120,120)}Siegel recreates PandaDoc and DocuSign in one free, self-hosted app.
+Dialogue: 0,0:00:19.07,0:00:20.29,Cap,,0,0,0,,{\fad(120,120)}And makes them better.
+Dialogue: 0,0:00:20.29,0:00:23.54,Cap,,0,0,0,,{\fad(120,120)}Paste your call notes,
+Dialogue: 0,0:00:23.72,0:00:27.65,Cap,,0,0,0,,{\fad(120,120)}and AI, with your own key, drafts the scope, the timeline and three pricing tiers.
+Dialogue: 0,0:00:27.65,0:00:29.95,Cap,,0,0,0,,{\fad(120,120)}Edit inline, send one link.
+Dialogue: 0,0:00:30.27,0:00:33.31,Cap,,0,0,0,,{\fad(120,120)}Your client picks a package, signs on any device,
+Dialogue: 0,0:00:33.38,0:00:35.20,Cap,,0,0,0,,{\fad(120,120)}and pays the deposit through Stripe.
+Dialogue: 0,0:00:35.56,0:00:38.96,Cap,,0,0,0,,{\fad(120,120)}Webhooks trigger n8n, Make or Zapier.
+Dialogue: 0,0:00:38.96,0:00:41.08,Cap,,0,0,0,,{\fad(120,120)}And every signature is provable:
+Dialogue: 0,0:00:41.40,0:00:45.70,Cap,,0,0,0,,{\fad(120,120)}a SHA-256 fingerprint, and a hash-chained audit trail.
+Dialogue: 0,0:00:46.00,0:00:47.78,Cap,,0,0,0,,{\fad(120,120)}Change one price after signing,
+Dialogue: 0,0:00:47.93,0:00:49.31,Cap,,0,0,0,,{\fad(120,120)}and the chain breaks.
+Dialogue: 0,0:00:49.31,0:00:51.96,Cap,,0,0,0,,{\fad(120,120)}That's why Siegel belongs in the Ninja Armory.
+Dialogue: 0,0:00:52.25,0:00:55.56,Cap,,0,0,0,,{\fad(120,120)}A costly problem, solved in one elegant app.
+Dialogue: 0,0:00:55.90,0:00:58.70,Cap,,0,0,0,,{\fad(120,120)}Free. Self-hosted. Yours.

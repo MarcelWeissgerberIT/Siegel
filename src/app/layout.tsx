@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { PwaRegister } from "@/components/pwa";
 import { ToastProvider } from "@/components/toast";
 import "./globals.css";
 
@@ -14,7 +15,10 @@ export const metadata: Metadata = {
   title: { default: "Siegel · Proposals that close themselves", template: "%s · Siegel" },
   description:
     "From call notes to signed and paid in under 5 minutes, with signatures you can actually prove. AI proposals, e-signatures with a hash-chained audit trail, Stripe deposits and webhooks. Free, self-hosted, yours.",
-  icons: { icon: `${BASE}/favicon.svg` },
+  manifest: `${BASE}/manifest.webmanifest`,
+  icons: { icon: `${BASE}/favicon.svg`, apple: `${BASE}/icons/apple-touch-icon.png` },
+  appleWebApp: { capable: true, title: "Siegel", statusBarStyle: "black-translucent" },
+  applicationName: "Siegel",
   openGraph: {
     title: "Siegel · Proposals that close themselves",
     description: "AI proposals → verifiable e-signature → Stripe deposit → webhook. Self-hosted, replaces PandaDoc + DocuSign.",
@@ -40,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full">
         <ToastProvider>{children}</ToastProvider>
+        <PwaRegister />
       </body>
     </html>
   );

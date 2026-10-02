@@ -1,0 +1,29 @@
+{
+  "name": "Siegel · Proposals that close themselves",
+  "short_name": "Siegel",
+  "description": "AI proposals, verifiable e-signatures, Stripe deposits and webhooks. Self-hosted.",
+  "id": "./",
+  "start_url": "./dashboard/",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#0a0908",
+  "theme_color": "#0a0908",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "icons/screenshot-wide.jpg", "sizes": "1440x900", "type": "image/jpeg", "form_factor": "wide", "label": "Pipeline dashboard" },
+    { "src": "icons/screenshot-mobile.jpg", "sizes": "780x1688", "type": "image/jpeg", "form_factor": "narrow", "label": "Client proposal page" }
+  ],
+  "shortcuts": [
+    { "name": "New proposal", "short_name": "New", "url": "./new/", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Dashboard", "url": "./dashboard/", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Verify a certificate", "short_name": "Verify", "url": "./verify/", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -10,6 +10,8 @@ import {
   FileStack,
 
   KeyRound,
+  Play,
+  X,
   Layers,
   MoonStar,
   MousePointerClick,
@@ -22,10 +24,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { MODE } from "@/client/api";
+import { asset, MODE } from "@/client/api";
 import { LiveChain } from "@/components/live-chain";
 import { GithubIcon as Github, Logo, SealMark } from "@/components/logo";
 import { Img, LoopVideo } from "@/components/media";
+import { InstallButton } from "@/components/pwa";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CopyButton } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -54,6 +57,7 @@ const FEATURES = [
 
 export default function Landing() {
   const [tampered, setTampered] = useState(false);
+  const [pitch, setPitch] = useState(false);
   const demoHref = "/dashboard/";
 
   return (
@@ -71,6 +75,7 @@ export default function Landing() {
             <a href="#self-host" className="hover:text-white">Self-host</a>
           </nav>
           <div className="flex items-center gap-2">
+            <InstallButton className="hidden text-white/80 hover:bg-white/10 hover:text-white sm:inline-flex" />
             <a href={REPO} className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white sm:block" aria-label="GitHub">
               <Github className="h-4 w-4" />
             </a>
@@ -107,8 +112,14 @@ export default function Landing() {
             >
               <Sparkles className="h-4 w-4" /> Try the live demo
             </Link>
-            <a href="#self-host" className="inline-flex h-12 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 text-[15px] font-medium text-white backdrop-blur transition hover:bg-white/10">
-              <Server className="h-4 w-4" /> Self-host in one command
+            <button
+              onClick={() => setPitch(true)}
+              className="inline-flex h-12 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 text-[15px] font-medium text-white backdrop-blur transition hover:bg-white/10"
+            >
+              <Play className="h-4 w-4 fill-current" /> Watch the 60-second pitch
+            </button>
+            <a href="#self-host" className="inline-flex h-12 items-center gap-2 px-2 text-[15px] font-medium text-white/70 transition hover:text-white">
+              <Server className="h-4 w-4" /> Self-host
             </a>
           </div>
           <div className="mt-14 grid max-w-3xl animate-fade-up grid-cols-3 gap-6 border-t border-white/10 pt-6 [animation-delay:320ms]">
@@ -348,6 +359,23 @@ export default function Landing() {
           </a>
         </div>
       </section>
+
+      {pitch && (
+        <div className="fixed inset-0 z-50 grid animate-fade-in place-items-center bg-black/90 p-4 backdrop-blur" onClick={() => setPitch(false)}>
+          <button onClick={() => setPitch(false)} className="absolute right-4 top-4 rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Close video">
+            <X className="h-6 w-6" />
+          </button>
+          <video
+            src={asset("/siegel-pitch.mp4")}
+            poster={asset("/siegel-pitch-poster.jpg")}
+            controls
+            autoPlay
+            playsInline
+            className="aspect-video w-full max-w-5xl rounded-2xl shadow-[0_40px_120px_-30px_rgba(224,68,43,0.6)]"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       <footer className="border-t border-line bg-bg">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-muted sm:flex-row sm:px-8">

@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { auth, MODE } from "@/client/api";
 import { cn } from "@/lib/cn";
 import { Logo } from "./logo";
+import { InstallButton } from "./pwa";
 import { ThemeToggle } from "./theme-toggle";
 import { Kbd, Spinner } from "./ui";
 
@@ -62,6 +63,7 @@ function Footer() {
           <p className="mt-1">Data is stored locally (IndexedDB). Self-host with Docker to share links with real clients.</p>
         </div>
       ) : null}
+      <InstallButton className="w-full justify-center border border-line bg-elev text-fg hover:bg-hover" label="Install Siegel as an app" />
       <div className="flex items-center justify-between">
         <ThemeToggle />
         {MODE === "server" && (
