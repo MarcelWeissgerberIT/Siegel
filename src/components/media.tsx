@@ -49,6 +49,42 @@ export function LoopVideo({
   );
 }
 
+/** Plays a Higgsfield clip once when it scrolls into view, then holds the last frame. */
+export function RevealVideo({ name, className }: { name: string; className?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const toEnd = () => (v.currentTime = Math.max(0, v.duration - 0.05));
+      v.addEventListener("loadedmetadata", toEnd, { once: true });
+      return () => v.removeEventListener("loadedmetadata", toEnd);
+    }
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        v.play().catch(() => {});
+        io.disconnect();
+      },
+      { threshold: 0.6 },
+    );
+    io.observe(v);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <video
+      ref={ref}
+      className={cn("object-cover", className)}
+      src={asset(`/media/${name}.mp4`)}
+      poster={asset(`/media/${name}-poster.jpg`)}
+      muted
+      playsInline
+      preload="auto"
+      aria-hidden
+    />
+  );
+}
+
 export function Img({ name, alt = "", className }: { name: string; alt?: string; className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={asset(`/media/${name}.webp`)} alt={alt} className={cn("object-cover", className)} loading="lazy" decoding="async" />;

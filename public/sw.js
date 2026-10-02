@@ -4,7 +4,7 @@
  * - Hashed build assets, fonts, icons, images: cache-first.
  * - Never touches /api/* (auth, RPC, Stripe webhooks) or non-GET requests.
  */
-const VERSION = "siegel-v1";
+const VERSION = "siegel-v2";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const SCOPE = new URL(self.registration.scope).pathname; // e.g. "/Siegel/" or "/"
@@ -15,6 +15,7 @@ const MEDIA = [
   "media/hero-seal.webp", "media/wax-disc.webp", "media/certificate.webp",
   "media/hero-loop-poster.jpg", "media/chain-loop-poster.jpg", "media/chain-break-poster.jpg", "media/seal-press-poster.jpg",
   "media/notes-flow-poster.jpg", "media/silk-loop-poster.jpg", "media/wax-drop-poster.jpg",
+  "media/pen.webp", "media/pen-reveal-poster.jpg",
 ];
 const ROUTES = ["", "dashboard/", "new/", "proposal/", "templates/", "settings/", "verify/", "p/", "p/pay/", "login/"];
 

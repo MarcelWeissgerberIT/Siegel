@@ -14,6 +14,8 @@ All imagery and motion loops in Siegel were generated with **Higgsfield**, then 
 | `cover-{ember,ink,dawn,emerald}.webp`, `silk-loop.mp4` | GPT Image 2.5 → Kling 3.0 (loop) | Proposal covers (client page hero), landing CTA |
 | `certificate.webp` | GPT Image 2.5 | Landing |
 | `wax-disc.webp` | GPT Image 2.5 | Empty states |
+| `pen.webp` | GPT Image 2.5 (transparent background) | The fountain pen that rests on the signature line and writes with the client |
+| `pen-reveal.mp4` | GPT Image 2.5 (start + edited end frame) → Kling 3.0 | "Accept & sign" header: the cap comes off as the client arrives |
 
 ## Prompts
 
@@ -33,3 +35,9 @@ All imagery and motion loops in Siegel were generated with **Higgsfield**, then 
 **Notes → proposal (4:3)**: Scattered handwritten meeting notes on yellow legal paper; toward the right the paper fibers dissolve into glowing ember particles that stream across and reassemble into a crisp, elegantly typeset premium business proposal with a small vermilion wax seal.
 
 **Covers (21:9)**: Abstract flowing silk waves in (ember) ink black, vermilion and amber gold · (ink) midnight navy and indigo liquid glass with iridescent highlights · (dawn) warm cream, pale peach and soft coral · (emerald) deep emerald and black with champagne gold.
+
+**Fountain pen (1:1, transparent)**: Photorealistic studio product photograph of a single luxury fountain pen with its cap removed, ready to write. Glossy deep black precious-resin barrel, polished gold-plated trim rings, a large two-tone 18k gold nib with fine engraved scrollwork. Absolutely no logo, no emblem, no lettering, no brand marks. The pen points diagonally at exactly 45 degrees, nib tip at the lower left. Isolated on a transparent background, no cast shadow.
+
+**Pen reveal (16:9)**: Start: a capped black-and-gold fountain pen floats horizontally in the right half of the frame above the edge of ivory cotton paper, near-black warm background, amber rim light, floating dust motes. End (edit of the start frame): same scene, the cap floats a few centimeters to the left, revealing the engraved gold nib.
+
+*Motion*: Locked-off camera. After a short beat the cap slowly slides straight off to the left along the pen's axis, revealing the gold nib, which catches a glint of warm light. The pen body does not move.

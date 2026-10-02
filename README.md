@@ -24,7 +24,7 @@ Agencies lose deals between the sales call and the signature. Writing a proposal
 |---|------|--------------|
 | 1 | **Paste call notes** | AI (bring your own key: **Anthropic, OpenAI or OpenRouter**) drafts problem summary, scope, deliverables, timeline and 2–3 pricing tiers. Works offline with a built-in demo drafter. |
 | 2 | **Edit inline, send one link** | Click any sentence to edit; autosaved. Publishing fingerprints the exact version the client will see. |
-| 3 | **Client picks a tier & signs** | A beautiful, mobile-first proposal page. Typed name + drawn signature, bound to the document hash. |
+| 3 | **Client picks a tier & signs** | A beautiful, mobile-first proposal page. Typed name + a signature drawn with a fountain pen that writes along with the hand (finger, mouse or stylus), bound to the document hash. |
 | 4 | **Instant deposit** | Straight from the signature to **Stripe Checkout** for exactly the deposit of the chosen package. Paste one Stripe key; Siegel creates the checkout and registers its own webhook. (Prefer no key? Payment Links per tier work too.) |
 | 5 | **Automations fire** | Signed webhooks `proposal.viewed`, `proposal.signed`, `proposal.paid` (+ `proposal.sent`) kick off onboarding in **n8n, Make or Zapier**. |
 
@@ -184,7 +184,7 @@ SIEGEL_BASE_PATH=/Siegel npm run build:pages   # static demo in ./out
 
 ## Credits
 
-Visuals and motion loops (wax seal, seal-press, hash-chain, silk covers) were generated with **Higgsfield** (GPT Image 2.5, Kling 3.0, Cinema Studio). Prompts are in [`docs/MEDIA.md`](docs/MEDIA.md).
+Visuals and motion loops (wax seal, seal-press, hash-chain, silk covers, the fountain pen you sign with) were generated with **Higgsfield** (GPT Image 2.5, Kling 3.0, Cinema Studio). Prompts are in [`docs/MEDIA.md`](docs/MEDIA.md).
 
 ## License
 

@@ -10,7 +10,7 @@ import { call } from "@/client/hooks";
 import { CHANGE_EVENT } from "@/client/local-repo";
 import { SealMark } from "@/components/logo";
 import { Markdown } from "@/components/markdown";
-import { COVERS, Img, LoopVideo } from "@/components/media";
+import { COVERS, Img, LoopVideo, RevealVideo } from "@/components/media";
 import { SealMoment } from "@/components/seal-moment";
 import { SignaturePad } from "@/components/signature-pad";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -193,7 +193,7 @@ function PublicProposalInner() {
   const ctaLabel = sealed?.paymentUrl || sealed?.checkout || sealed?.simulated ? `Pay ${money(deposit, doc.currency, { cents: deposit % 1 !== 0 })} deposit` : "View signed proposal";
 
   return (
-    <div style={{ ["--brand" as string]: brand }} className="min-h-screen pb-28 lg:pb-0">
+    <div style={{ ["--brand" as string]: brand }} className="min-h-screen overflow-x-clip pb-28 lg:pb-0">
       {preview && (
         <div className="sticky top-0 z-40 bg-[var(--warn)] px-4 py-1.5 text-center text-xs font-medium text-black">
           Preview: this is exactly what your client will see. Views aren&apos;t tracked and signing is disabled.
@@ -364,15 +364,18 @@ function PublicProposalInner() {
               <SignedState data={data} justPaid={justPaid} processing={processing} onCertificate={certificate} certBusy={certBusy} token={token} />
             ) : (
               <div className="overflow-hidden rounded-3xl border border-line bg-elev shadow-soft">
-                <div className="border-b border-line bg-sunken px-6 py-5 sm:px-8">
+                <div className="relative isolate overflow-hidden bg-[#0b0806] px-6 py-7 text-white sm:px-8 sm:py-9">
+                  {/* Higgsfield: the cap comes off the pen as the client arrives here. */}
+                  <RevealVideo name="pen-reveal" className="absolute inset-y-0 right-0 -z-10 h-full w-[150%] max-w-none sm:w-full" />
+                  <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0b0806] via-[#0b0806]/75 to-[#0b0806]/0 sm:via-[#0b0806]/45" />
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--brand)]">
                     <FileSignature className="h-4 w-4" /> Accept & sign
                   </div>
                   <h2 className="mt-2 font-serif text-3xl">Ready to start?</h2>
-                  <p className="mt-1 text-sm text-muted">
+                  <p className="mt-1 max-w-[19rem] text-sm text-white/70 sm:max-w-sm">
                     {tier ? (
                       <>
-                        You&apos;re accepting <span className="font-medium text-fg">{tier.name}</span> for {money(tier.price, doc.currency)}
+                        You&apos;re accepting <span className="font-medium text-white">{tier.name}</span> for {money(tier.price, doc.currency)}
                         {tier.billing === "monthly" ? " per month" : ""}.
                       </>
                     ) : (
