@@ -239,25 +239,24 @@ export function ProposalEditor({
                     )}
                   </div>
                   <Input value={t.name} onChange={(e) => setTier(i, { name: e.target.value })} className="h-8 border-transparent bg-transparent px-1 text-base font-semibold focus:bg-sunken" />
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <span className="pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 text-lg font-semibold text-subtle">
-                        {money(0, p.currency).replace(/[\d.,\s]/g, "")}
-                      </span>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={50}
-                        value={t.price}
-                        onChange={(e) => setTier(i, { price: Number(e.target.value) || 0 })}
-                        className="h-10 border-transparent bg-transparent pl-6 text-2xl font-semibold tabular-nums tracking-tight focus:bg-sunken"
-                      />
-                    </div>
-                    <Select value={t.billing} onChange={(e) => setTier(i, { billing: e.target.value as Tier["billing"] })} className="h-8 w-[112px] text-xs">
-                      <option value="one-time">one-time</option>
-                      <option value="monthly">/ month</option>
-                    </Select>
+                  {/* Price gets its own row so it never truncates in a three-column layout. */}
+                  <div className="relative mt-1">
+                    <span className="pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 text-lg font-semibold text-subtle">
+                      {money(0, p.currency).replace(/[\d.,\s]/g, "")}
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={t.price}
+                      onChange={(e) => setTier(i, { price: Number(e.target.value) || 0 })}
+                      className="h-10 border-transparent bg-transparent pl-6 text-2xl font-semibold tabular-nums tracking-tight [appearance:textfield] focus:bg-sunken [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
                   </div>
+                  <Select value={t.billing} onChange={(e) => setTier(i, { billing: e.target.value as Tier["billing"] })} className="mt-1 h-7 w-[118px] text-xs">
+                    <option value="one-time">one-time</option>
+                    <option value="monthly">per month</option>
+                  </Select>
                   <AutoTextarea
                     value={t.description}
                     onChange={(e) => setTier(i, { description: e.target.value })}
