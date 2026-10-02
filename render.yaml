@@ -1,0 +1,18 @@
+# One-click deploy on Render: New → Blueprint → this repo.
+services:
+  - type: web
+    name: siegel
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: siegel-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: SIEGEL_PASSWORD
+        generateValue: true
+      - key: SIEGEL_PUBLIC_URL
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false

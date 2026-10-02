@@ -1,0 +1,23 @@
+# docker compose up -d   →   http://localhost:3000
+services:
+  siegel:
+    build: .
+    image: siegel:latest
+    container_name: siegel
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # Leave empty to create the password on first visit.
+      SIEGEL_PASSWORD: ${SIEGEL_PASSWORD:-}
+      # Public base URL used in client links and certificates, e.g. https://proposals.youragency.com
+      SIEGEL_PUBLIC_URL: ${SIEGEL_PUBLIC_URL:-}
+      # Optional: overrides the Stripe signing secret set in Settings → Payments.
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # 1 = demo instance: seeds sample data, password "demo", simulated checkout, tamper test.
+      SIEGEL_DEMO: ${SIEGEL_DEMO:-0}
+    volumes:
+      - siegel-data:/data
+    restart: unless-stopped
+
+volumes:
+  siegel-data:
